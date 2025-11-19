@@ -16,9 +16,14 @@ app.use(express.json());
 
 connectDB();
 
-/* ===== MEMBERS ===== */
+async function getNextId(Model, idField) {
+  const doc = await Model.findOne().sort({ [idField]: -1 }).select(idField);
+  return doc ? doc[idField] + 1 : 1;
+}
 
-// 1) GET all members
+// MEMBERS
+
+// GET /members
 app.get("/members", async (req, res) => {
   try {
     const members = await Member.find();
@@ -29,58 +34,80 @@ app.get("/members", async (req, res) => {
   }
 });
 
-// 2) POST new member
+// POST /members
 app.post("/members", async (req, res) => {
   try {
-    const newMember = await Member.create(req.body);
-    res.status(201).json(newMember);
-  } catch (err) {
-    console.error(err);
-    res.status(400).json({ error: err.message });
-  }
-});
+    const { m_email, m_password, m_name } = req.body;
+    if (!m_email || !m_password || !m_name)
+      return res.status(400).json({ message: "Missing fields" });
 
-// 3) GET member by id
-app.get("/members/:id", async (req, res) => {
-  try {
-    const m = await Member.findById(req.params.id);
-    if (!m) return res.sendStatus(404);
-    res.json(m);
-  } catch (err) {
-    console.error(err);
-    res.sendStatus(400);
-  }
-});
+    const m_id = await getNextId(Member, "m_id");
 
-// 4) UPDATE member
-app.put("/members/:id", async (req, res) => {
-  try {
-    const updated = await Member.findByIdAndUpdate(req.params.id, req.body, {
-      new: true
+    await Member.create({
+      m_id,
+      m_email,
+      m_password,
+      m_name
     });
-    if (!updated) return res.sendStatus(404);
-    res.json(updated);
+
+    res.status(201).json({ m_id });
   } catch (err) {
     console.error(err);
     res.sendStatus(400);
   }
 });
 
-// 5) DELETE member
-app.delete("/members/:id", async (req, res) => {
+// GET /members/:m_id
+app.get("/members/:m_id", async (req, res) => {
   try {
-    const deleted = await Member.findByIdAndDelete(req.params.id);
-    if (!deleted) return res.sendStatus(404);
-    res.json({ message: "Member deleted" });
+    const m_id = Number(req.params.m_id);
+    const member = await Member.findOne({ m_id });
+    if (!member) return res.sendStatus(404);
+    res.json(member);
   } catch (err) {
     console.error(err);
     res.sendStatus(400);
   }
 });
 
-/* ===== COURSES ===== */
+// PUT /members/:m_id
+app.put("/members/:m_id", async (req, res) => {
+  try {
+    const m_id = Number(req.params.m_id);
+    const { m_email, m_password, m_name } = req.body;
 
-// 6) GET all courses
+    if (!m_email || !m_password || !m_name)
+      return res.status(400).json({ message: "Missing fields" });
+
+    const updated = await Member.findOneAndUpdate(
+      { m_id },
+      { m_email, m_password, m_name },
+      { new: true }
+    );
+
+    if (!updated) return res.sendStatus(404);
+    res.sendStatus(200);
+  } catch (err) {
+    console.error(err);
+    res.sendStatus(400);
+  }
+});
+
+// DELETE /members/:m_id
+app.delete("/members/:m_id", async (req, res) => {
+  try {
+    const m_id = Number(req.params.m_id);
+    const deleted = await Member.findOneAndDelete({ m_id });
+    if (!deleted) return res.sendStatus(404);
+    res.sendStatus(200);
+  } catch (err) {
+    console.error(err);
+    res.sendStatus(400);
+  }
+});
+
+// COURSES
+
 app.get("/courses", async (req, res) => {
   try {
     const courses = await Course.find();
@@ -91,61 +118,80 @@ app.get("/courses", async (req, res) => {
   }
 });
 
-// 7) POST create course
 app.post("/courses", async (req, res) => {
   try {
-    const newCourse = await Course.create(req.body);
-    res.status(201).json(newCourse);
-  } catch (err) {
-    console.error(err);
-    res.status(400).json({ error: err.message });
-  }
-});
+    const { c_name, c_description, c_price } = req.body;
+    if (!c_name || !c_description || c_price === undefined)
+      return res.status(400).json({ message: "Missing fields" });
 
-// 8) GET course by id
-app.get("/courses/:id", async (req, res) => {
-  try {
-    const c = await Course.findById(req.params.id);
-    if (!c) return res.sendStatus(404);
-    res.json(c);
-  } catch (err) {
-    console.error(err);
-    res.sendStatus(400);
-  }
-});
+    const c_id = await getNextId(Course, "c_id");
 
-// 9) UPDATE course
-app.put("/courses/:id", async (req, res) => {
-  try {
-    const updated = await Course.findByIdAndUpdate(req.params.id, req.body, {
-      new: true
+    await Course.create({
+      c_id,
+      c_name,
+      c_description,
+      c_price
     });
-    if (!updated) return res.sendStatus(404);
-    res.json(updated);
+
+    res.status(201).json({ c_id });
   } catch (err) {
     console.error(err);
     res.sendStatus(400);
   }
 });
 
-// 10) DELETE course
-app.delete("/courses/:id", async (req, res) => {
+app.get("/courses/:c_id", async (req, res) => {
   try {
-    const deleted = await Course.findByIdAndDelete(req.params.id);
-    if (!deleted) return res.sendStatus(404);
-    res.json({ message: "Course deleted" });
+    const c_id = Number(req.params.c_id);
+    const course = await Course.findOne({ c_id });
+    if (!course) return res.sendStatus(404);
+    res.json(course);
   } catch (err) {
     console.error(err);
     res.sendStatus(400);
   }
 });
 
-/* ===== ENROLLS ===== */
+app.put("/courses/:c_id", async (req, res) => {
+  try {
+    const c_id = Number(req.params.c_id);
+    const { c_name, c_description, c_price } = req.body;
 
-// 11) GET all enrolls
+    if (!c_name || !c_description || c_price === undefined)
+      return res.status(400).json({ message: "Missing fields" });
+
+    const updated = await Course.findOneAndUpdate(
+      { c_id },
+      { c_name, c_description, c_price },
+      { new: true }
+    );
+
+    if (!updated) return res.sendStatus(404);
+    res.sendStatus(200);
+  } catch (err) {
+    console.error(err);
+    res.sendStatus(400);
+  }
+});
+
+app.delete("/courses/:c_id", async (req, res) => {
+  try {
+    const c_id = Number(req.params.c_id);
+    const deleted = await Course.findOneAndDelete({ c_id });
+    if (!deleted) return res.sendStatus(404);
+    res.sendStatus(200);
+  } catch (err) {
+    console.error(err);
+    res.sendStatus(400);
+  }
+});
+
+
+// ENROLLS
+
 app.get("/enrolls", async (req, res) => {
   try {
-    const enrolls = await Enroll.find().populate("m_id").populate("c_id");
+    const enrolls = await Enroll.find();
     res.json(enrolls);
   } catch (err) {
     console.error(err);
@@ -153,75 +199,96 @@ app.get("/enrolls", async (req, res) => {
   }
 });
 
-// 12) POST create enroll
 app.post("/enrolls", async (req, res) => {
   try {
-    const newEnroll = await Enroll.create(req.body);
-    res.status(201).json(newEnroll);
-  } catch (err) {
-    console.error(err);
-    res.status(400).json({ error: err.message });
-  }
-});
+    const { m_id, c_id, cer_start, cer_expire } = req.body;
 
-// 13) GET enroll by id
-app.get("/enrolls/:id", async (req, res) => {
-  try {
-    const e = await Enroll.findById(req.params.id)
-      .populate("m_id")
-      .populate("c_id");
-    if (!e) return res.sendStatus(404);
-    res.json(e);
-  } catch (err) {
-    console.error(err);
-    res.sendStatus(400);
-  }
-});
+    if (!m_id || !c_id || !cer_start || !cer_expire)
+      return res.status(400).json({ message: "Missing fields" });
 
-// 14) UPDATE enroll
-app.put("/enrolls/:id", async (req, res) => {
-  try {
-    const updated = await Enroll.findByIdAndUpdate(req.params.id, req.body, {
-      new: true
+    const cer_id = await getNextId(Enroll, "cer_id");
+
+    await Enroll.create({
+      cer_id,
+      m_id,
+      c_id,
+      cer_start,
+      cer_expire
     });
-    if (!updated) return res.sendStatus(404);
-    res.json(updated);
+
+    res.status(201).json({ cer_id });
   } catch (err) {
     console.error(err);
     res.sendStatus(400);
   }
 });
 
-// 15) DELETE enroll
-app.delete("/enrolls/:id", async (req, res) => {
+app.get("/enrolls/:cer_id", async (req, res) => {
   try {
-    const deleted = await Enroll.findByIdAndDelete(req.params.id);
-    if (!deleted) return res.sendStatus(404);
-    res.json({ message: "Enroll deleted" });
+    const cer_id = Number(req.params.cer_id);
+    const enroll = await Enroll.findOne({ cer_id });
+    if (!enroll) return res.sendStatus(404);
+    res.json(enroll);
   } catch (err) {
     console.error(err);
     res.sendStatus(400);
   }
 });
 
-// 16) GET enrolls by member id
+app.put("/enrolls/:cer_id", async (req, res) => {
+  try {
+    const cer_id = Number(req.params.cer_id);
+    const { m_id, c_id, cer_start, cer_expire } = req.body;
+
+    if (!m_id || !c_id || !cer_start || !cer_expire)
+      return res.status(400).json({ message: "Missing fields" });
+
+    const updated = await Enroll.findOneAndUpdate(
+      { cer_id },
+      { m_id, c_id, cer_start, cer_expire },
+      { new: true }
+    );
+
+    if (!updated) return res.sendStatus(404);
+    res.sendStatus(200);
+  } catch (err) {
+    console.error(err);
+    res.sendStatus(400);
+  }
+});
+
+app.delete("/enrolls/:cer_id", async (req, res) => {
+  try {
+    const cer_id = Number(req.params.cer_id);
+    const deleted = await Enroll.findOneAndDelete({ cer_id });
+    if (!deleted) return res.sendStatus(404);
+    res.sendStatus(200);
+  } catch (err) {
+    console.error(err);
+    res.sendStatus(400);
+  }
+});
+
+// GET enrolls by m_id
 app.get("/enrolls/member/:m_id", async (req, res) => {
   try {
-    const list = await Enroll.find({ m_id: req.params.m_id }).populate("c_id");
-    if (!list.length) return res.sendStatus(404);
-    res.json(list);
+    const m_id = Number(req.params.m_id);
+    const rows = await Enroll.find({ m_id });
+    if (!rows.length) return res.sendStatus(404);
+    res.json(rows);
   } catch (err) {
     console.error(err);
     res.sendStatus(400);
   }
 });
 
-// 17) GET enrolls by course id
+// GET enrolls by c_id
 app.get("/enrolls/course/:c_id", async (req, res) => {
   try {
-    const list = await Enroll.find({ c_id: req.params.c_id }).populate("m_id");
-    if (!list.length) return res.sendStatus(404);
-    res.json(list);
+    const c_id = Number(req.params.c_id);
+    const rows = await Enroll.find({ c_id });
+    if (!rows.length) return res.sendStatus(404);
+    res.json(rows);
   } catch (err) {
     console.error(err);
     res.sendStatus(400);
