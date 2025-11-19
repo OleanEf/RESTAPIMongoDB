@@ -1,10 +1,25 @@
 const mongoose = require("mongoose");
 
-const EnrollSchema = new mongoose.Schema({
-  m_id: { type: mongoose.Schema.Types.ObjectId, ref: "Member", required: true },
-  c_id: { type: mongoose.Schema.Types.ObjectId, ref: "Course", required: true },
-  cer_start: { type: Date, required: true },
-  cer_expire: { type: Date, required: true }
+const EnrollSchema = new mongoose.Schema(
+  {
+    cer_id: { type: Number, required: true, unique: true },
+    m_id: { type: Number, required: true },
+    c_id: { type: Number, required: true },
+    cer_start: { type: Date, required: true },
+    cer_expire: { type: Date, required: true }
+  },
+  { versionKey: false }
+);
+
+EnrollSchema.set("toJSON", {
+  transform: (doc, ret) => {
+    delete ret._id;
+
+    ret.cer_start = ret.cer_start.toISOString().split("T")[0];
+    ret.cer_expire = ret.cer_expire.toISOString().split("T")[0];
+    
+    return ret;
+  }
 });
 
 module.exports = mongoose.model("Enroll", EnrollSchema);
